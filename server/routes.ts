@@ -491,7 +491,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Process bets for this period
         const periodBets = await storage.getBetsByPeriod(currentCandle.period, 'FastParity');
         for (const bet of periodBets) {
-          const isWin = (result === 'green' && bet.ans === 'up') || (result === 'red' && bet.ans === 'down');
+          const isWin =
+            (result === 'green' && (bet.ans === 'green' || bet.ans === 'up')) ||
+            (result === 'red' && (bet.ans === 'red' || bet.ans === 'down'));
           const payout = isWin ? bet.amount * 1.98 : 0; // 98% payout
           
           await storage.updateBetResult(bet.id, isWin ? 'win' : 'loss', payout);
