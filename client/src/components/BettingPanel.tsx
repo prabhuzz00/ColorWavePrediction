@@ -19,8 +19,8 @@ export default function BettingPanel() {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   
   const [periodInfo, setPeriodInfo] = useState<PeriodInfo>({
-    current: Date.now(),
-    next: Date.now() + 60000,
+    current: Math.floor(Date.now() / 60000),
+    next: Math.floor(Date.now() / 60000) + 1,
     countdown: 60,
     bettingActive: true
   });
@@ -38,7 +38,7 @@ export default function BettingPanel() {
           newCountdown = 60;
           return {
             current: prev.next,
-            next: prev.next + 60000,
+            next: prev.next + 1,
             countdown: newCountdown,
             bettingActive: true
           };
@@ -148,7 +148,7 @@ export default function BettingPanel() {
     try {
       const response = await api.placeBet({
         username: user.username,
-        period: Math.floor(periodInfo.current / 60000),
+        period: periodInfo.current,
         amount: selectedAmount,
         direction,
         gameType: 'FastParity'
@@ -206,7 +206,7 @@ export default function BettingPanel() {
             <h2 className="text-lg font-semibold text-white mb-1">Current Period</h2>
             <div className="flex items-center space-x-4">
               <span className="text-xl font-bold text-accent-blue">
-                {Math.floor(periodInfo.current / 60000)}
+                {periodInfo.current}
               </span>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
@@ -220,7 +220,7 @@ export default function BettingPanel() {
           <div className="text-right">
             <div className="text-sm text-gray-400 mb-1">Next Period</div>
             <div className="text-lg font-semibold text-white">
-              {Math.floor(periodInfo.next / 60000)}
+              {periodInfo.next}
             </div>
           </div>
         </div>
