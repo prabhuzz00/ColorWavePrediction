@@ -496,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             (result === 'red' && (bet.ans === 'red' || bet.ans === 'down'));
           const payout = isWin ? bet.amount * 1.98 : 0; // 98% payout
           
-          await storage.updateBetResult(bet.id, isWin ? 'win' : 'loss', payout);
+          await storage.updateBetResult(String(bet.id), isWin ? 'win' : 'loss', payout);
           
           if (isWin) {
             await storage.updateUserBalance(bet.username, payout);
@@ -592,10 +592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status } = req.body;
       
-      await storage.updateRechargeStatus(parseInt(id), status);
+      await storage.updateRechargeStatus(id, status);
       
       if (status === 'approved') {
-        const recharge = await storage.getRechargeById(parseInt(id));
+        const recharge = await storage.getRechargeById(id);
         if (recharge) {
           await storage.updateUserBalance(recharge.username, recharge.amount);
           await storage.createTransaction({
@@ -629,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status } = req.body;
       
-      await storage.updateWithdrawalStatus(parseInt(id), status);
+      await storage.updateWithdrawalStatus(id, status);
       res.json({ error: false, message: 'Withdrawal status updated' });
     } catch (error) {
       res.status(500).json({ error: true, message: 'Failed to update withdrawal' });
