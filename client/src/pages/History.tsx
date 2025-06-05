@@ -29,7 +29,7 @@ export default function History() {
     data: bettingHistory = [],
     isLoading: bettingLoading,
   } = useQuery<Bet[]>({
-    queryKey: ['/api/bets', user?.username],
+    queryKey: [`/api/bets/${user?.username}`, user?.username],
     enabled: !!user && activeTab === 'betting',
   });
 
@@ -38,7 +38,7 @@ export default function History() {
     data: rechargeHistory = [],
     isLoading: rechargeLoading,
   } = useQuery<Recharge[]>({
-    queryKey: ['/api/recharge/history', user?.username],
+    queryKey: [`/api/recharge/history/${user?.username}`, user?.username],
     enabled: !!user && activeTab === 'recharge',
   });
 
@@ -47,7 +47,7 @@ export default function History() {
     data: withdrawalHistory = [],
     isLoading: withdrawalLoading,
   } = useQuery<Withdrawal[]>({
-    queryKey: ['/api/withdraw/history', user?.username],
+    queryKey: [`/api/withdraw/history/${user?.username}`, user?.username],
     enabled: !!user && activeTab === 'withdrawal',
   });
 
@@ -56,7 +56,7 @@ export default function History() {
     data: transactionHistory = [],
     isLoading: transactionLoading,
   } = useQuery<Transaction[]>({
-    queryKey: ['/api/transactions', user?.username],
+    queryKey: [`/api/transactions/${user?.username}`, user?.username],
     enabled: !!user && activeTab === 'transactions',
   });
 
