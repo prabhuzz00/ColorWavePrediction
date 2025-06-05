@@ -25,25 +25,37 @@ export default function History() {
   const [activeTab, setActiveTab] = useState<string>('betting');
 
   // Fetch betting history
-  const { data: bettingHistory = [], isLoading: bettingLoading } = useQuery({
+  const {
+    data: bettingHistory = [],
+    isLoading: bettingLoading,
+  } = useQuery<Bet[]>({
     queryKey: ['/api/bets', user?.username],
     enabled: !!user && activeTab === 'betting',
   });
 
   // Fetch recharge history
-  const { data: rechargeHistory = [], isLoading: rechargeLoading } = useQuery({
+  const {
+    data: rechargeHistory = [],
+    isLoading: rechargeLoading,
+  } = useQuery<Recharge[]>({
     queryKey: ['/api/recharge/history', user?.username],
     enabled: !!user && activeTab === 'recharge',
   });
 
   // Fetch withdrawal history
-  const { data: withdrawalHistory = [], isLoading: withdrawalLoading } = useQuery({
+  const {
+    data: withdrawalHistory = [],
+    isLoading: withdrawalLoading,
+  } = useQuery<Withdrawal[]>({
     queryKey: ['/api/withdraw/history', user?.username],
     enabled: !!user && activeTab === 'withdrawal',
   });
 
   // Fetch transaction history
-  const { data: transactionHistory = [], isLoading: transactionLoading } = useQuery({
+  const {
+    data: transactionHistory = [],
+    isLoading: transactionLoading,
+  } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions', user?.username],
     enabled: !!user && activeTab === 'transactions',
   });

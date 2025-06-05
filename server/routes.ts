@@ -183,9 +183,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: true, message: 'User not found' });
       }
       
-      if (user.balance < amount) {
-        return res.status(400).json({ error: true, message: 'Insufficient balance' });
-      }
+        if ((user.balance ?? 0) < amount) {
+          return res.status(400).json({ error: true, message: 'Insufficient balance' });
+        }
       
       // Convert direction to answer format
       const ans = direction === 'up' ? 'green' : 'red';
@@ -199,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update user balance
-      await storage.updateUserBalance(username, user.balance - amount);
+        await storage.updateUserBalance(username, (user.balance ?? 0) - amount);
       
       // Create transaction record
       await storage.createTransaction({
@@ -301,14 +301,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: true, message: 'User not found' });
       }
       
-      if (user.balance < validatedData.amount) {
+      if ((user.balance ?? 0) < validatedData.amount) {
         return res.status(400).json({ error: true, message: 'Insufficient balance' });
       }
       
       const withdrawal = await storage.createWithdrawal(validatedData);
       
       // Update user balance
-      await storage.updateUserBalance(validatedData.username, user.balance - validatedData.amount);
+      await storage.updateUserBalance(
+        validatedData.username,
+        (user.balance ?? 0) - validatedData.amount
+      );
       
       // Create transaction record
       await storage.createTransaction({
