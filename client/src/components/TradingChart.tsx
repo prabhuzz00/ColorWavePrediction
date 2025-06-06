@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChartDataPoint, GameResult } from '@/lib/types';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { api } from '@/lib/api';
 
 interface TradingChartProps {
   gameType?: string;
@@ -13,32 +14,52 @@ export default function TradingChart({ gameType = 'FastParity' }: TradingChartPr
   const [recentResults, setRecentResults] = useState<GameResult[]>([]);
   const { lastMessage } = useWebSocket('/ws');
 
-  // Initialize chart with sample data
+  // Fetch initial chart data from the server
   useEffect(() => {
-    const initialData: ChartDataPoint[] = [];
-    const basePrice = 1200;
-    const now = Date.now();
-    
-    for (let i = 19; i >= 0; i--) {
-      const timestamp = new Date(now - i * 60000);
-      const open = basePrice + (Math.random() - 0.5) * 100;
-      const close = open + (Math.random() - 0.5) * 50;
-      const high = Math.max(open, close) + Math.random() * 20;
-      const low = Math.min(open, close) - Math.random() * 20;
-      
-      initialData.push({
-        period: Math.floor(timestamp.getTime() / 60000),
-        timestamp: timestamp.toISOString(),
-        open,
-        high,
-        low,
-        close
-      });
+    async function loadData() {
+      try {
+        const data = await api.getChartData(gameType, 20);
+        if (Array.isArray(data) && data.length > 0) {
+          const sorted = data.sort(
+            (a: ChartDataPoint, b: ChartDataPoint) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          setChartData(sorted);
+          setLastPrice(sorted[sorted.length - 1].close);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to fetch chart data', err);
+      }
+
+      // Fallback to sample data if API fails or returns nothing
+      const initialData: ChartDataPoint[] = [];
+      const basePrice = 1200;
+      const now = Date.now();
+
+      for (let i = 19; i >= 0; i--) {
+        const timestamp = new Date(now - i * 60000);
+        const open = basePrice + (Math.random() - 0.5) * 100;
+        const close = open + (Math.random() - 0.5) * 50;
+        const high = Math.max(open, close) + Math.random() * 20;
+        const low = Math.min(open, close) - Math.random() * 20;
+
+        initialData.push({
+          period: Math.floor(timestamp.getTime() / 60000),
+          timestamp: timestamp.toISOString(),
+          open,
+          high,
+          low,
+          close
+        });
+      }
+
+      setChartData(initialData);
+      setLastPrice(initialData[initialData.length - 1]?.close || 1247.83);
     }
-    
-    setChartData(initialData);
-    setLastPrice(initialData[initialData.length - 1]?.close || 1247.83);
-  }, []);
+
+    loadData();
+  }, [gameType]);
 
   // Handle WebSocket updates
   useEffect(() => {
