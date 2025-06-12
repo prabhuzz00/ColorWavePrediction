@@ -18,7 +18,7 @@ export default function TradingChart({ gameType = 'FastParity' }: TradingChartPr
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await api.getChartData(gameType, 20);
+        const data = await api.getChartData(gameType, 720);
         if (Array.isArray(data) && data.length > 0) {
           const sorted = data.sort(
             (a: ChartDataPoint, b: ChartDataPoint) =>
@@ -37,15 +37,15 @@ export default function TradingChart({ gameType = 'FastParity' }: TradingChartPr
       const basePrice = 1200;
       const now = Date.now();
 
-      for (let i = 19; i >= 0; i--) {
-        const timestamp = new Date(now - i * 60000);
+      for (let i = 719; i >= 0; i--) {
+        const timestamp = new Date(now - i * 120000);
         const open = basePrice + (Math.random() - 0.5) * 100;
         const close = open + (Math.random() - 0.5) * 50;
         const high = Math.max(open, close) + Math.random() * 20;
         const low = Math.min(open, close) - Math.random() * 20;
 
         initialData.push({
-          period: Math.floor(timestamp.getTime() / 60000),
+          period: Math.floor(timestamp.getTime() / 120000),
           timestamp: timestamp.toISOString(),
           open,
           high,
@@ -92,7 +92,7 @@ export default function TradingChart({ gameType = 'FastParity' }: TradingChartPr
             close: newData.close
           };
           const updated = [...prev, newCandle];
-          return updated.slice(-20); // Keep only last 20 candles
+          return updated.slice(-720); // Keep last 24h of 2m candles
         }
       });
       
@@ -244,7 +244,7 @@ export default function TradingChart({ gameType = 'FastParity' }: TradingChartPr
         <h3 className="text-lg font-semibold text-white">FastParity Chart</h3>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Interval:</span>
-          <span className="bg-accent-blue px-2 py-1 rounded text-xs font-medium text-white">1m</span>
+          <span className="bg-accent-blue px-2 py-1 rounded text-xs font-medium text-white">2m</span>
         </div>
       </div>
       

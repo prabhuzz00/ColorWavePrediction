@@ -19,9 +19,9 @@ export default function BettingPanel() {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   
   const [periodInfo, setPeriodInfo] = useState<PeriodInfo>({
-    current: Math.floor(Date.now() / 60000),
-    next: Math.floor(Date.now() / 60000) + 1,
-    countdown: 60,
+    current: Math.floor(Date.now() / 120000),
+    next: Math.floor(Date.now() / 120000) + 1,
+    countdown: 120,
     bettingActive: true
   });
 
@@ -32,10 +32,9 @@ export default function BettingPanel() {
     const interval = setInterval(() => {
       setPeriodInfo(prev => {
         let newCountdown = prev.countdown - 1;
-        
+
         if (newCountdown <= 0) {
-          // Start new period
-          newCountdown = 60;
+          newCountdown = 120;
           return {
             current: prev.next,
             next: prev.next + 1,
@@ -43,11 +42,11 @@ export default function BettingPanel() {
             bettingActive: true
           };
         }
-        
+
         return {
           ...prev,
           countdown: newCountdown,
-          bettingActive: newCountdown > 20 // Betting closes 20 seconds before period end
+          bettingActive: newCountdown > 60 // close betting after 1 minute
         };
       });
     }, 1000);
@@ -62,7 +61,7 @@ export default function BettingPanel() {
       setPeriodInfo({
         current: newData.period,
         next: newData.period + 1,
-        countdown: newData.countdown || 60,
+        countdown: newData.countdown || 120,
         bettingActive: newData.bettingActive !== false
       });
     }
@@ -168,7 +167,7 @@ export default function BettingPanel() {
         setCurrentBets(prev => [...prev, {
           ...response.bet,
           direction,
-          potential: selectedAmount * 1.95
+          potential: selectedAmount * 1.92
         }]);
 
         toast({
@@ -303,7 +302,7 @@ export default function BettingPanel() {
             <ArrowUp className="w-5 h-5 mr-2" />
             <div>
               <div>UP</div>
-              <div className="text-xs opacity-80 mt-1">Win: 1.95x</div>
+              <div className="text-xs opacity-80 mt-1">Win: 1.92x</div>
             </div>
           </Button>
           <Button
@@ -314,7 +313,7 @@ export default function BettingPanel() {
             <ArrowDown className="w-5 h-5 mr-2" />
             <div>
               <div>DOWN</div>
-              <div className="text-xs opacity-80 mt-1">Win: 1.95x</div>
+              <div className="text-xs opacity-80 mt-1">Win: 1.92x</div>
             </div>
           </Button>
         </div>
@@ -333,7 +332,7 @@ export default function BettingPanel() {
                     <span className="font-semibold text-white">₹{bet.amount}</span>
                   </div>
                   <div className="text-gray-400 mt-1">
-                    Potential: ₹{(bet.amount * 1.95).toFixed(2)}
+                    Potential: ₹{(bet.amount * 1.92).toFixed(2)}
                   </div>
                 </div>
               ))}
