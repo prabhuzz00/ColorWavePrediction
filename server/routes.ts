@@ -377,9 +377,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Game simulation with real-time price fluctuation
-  let gameInterval: NodeJS.Timeout;
+  const PERIOD_SECONDS = 120;
+  const BETTING_CLOSE = PERIOD_SECONDS / 2;
   let priceInterval: NodeJS.Timeout;
-  let currentPeriod = Math.floor(Date.now() / 60000);
+  let currentPeriod = Math.floor(Date.now() / (PERIOD_SECONDS * 1000));
   let currentCandle = {
     period: currentPeriod,
     open: 1200,
@@ -388,16 +389,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     close: 1200,
     timestamp: new Date().toISOString()
   };
-  let countdown = 60;
+  let countdown = PERIOD_SECONDS;
   let resultCalculated = false;
+  let resultColor: 'green' | 'red' | 'green_doji' | 'red_doji' | null = null;
   
   function startGameSimulation() {
-    if (gameInterval) clearInterval(gameInterval);
     if (priceInterval) clearInterval(priceInterval);
-    
+
     // Initialize current period
-    currentPeriod = Math.floor(Date.now() / 60000);
-    countdown = 60 - (Math.floor(Date.now() / 1000) % 60);
+    currentPeriod = Math.floor(Date.now() / (PERIOD_SECONDS * 1000));
+    countdown = PERIOD_SECONDS - (Math.floor(Date.now() / 1000) % PERIOD_SECONDS);
     
     // Get initial price from last candle
     storage.getChartData('FastParity', 1).then(data => {
@@ -417,7 +418,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       countdown--;
       
       if (countdown <= 0) {
-        // Period ended - finalize candle and start new period
+        // Finalize candle and apply final price based on result
+        const diff = Math.random() * 100 + 50;
+        if (!resultColor) resultColor = Math.random() > 0.5 ? 'green' : 'red';
+
+        let finalPrice = currentCandle.open;
+        if (resultColor === 'green') finalPrice += diff;
+        else if (resultColor === 'red') finalPrice -= diff;
+        else if (resultColor === 'green_doji' || resultColor === 'red_doji') finalPrice += (Math.random() - 0.5) * 10;
+
+        currentCandle.close = finalPrice;
+        currentCandle.high = Math.max(currentCandle.high, finalPrice);
+        currentCandle.low = Math.min(currentCandle.low, finalPrice);
+
         await storage.addChartData({
           period: currentCandle.period,
           timestamp: new Date(currentCandle.timestamp),
@@ -427,78 +440,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           close: currentCandle.close,
           gameType: 'FastParity'
         });
-        
-        // Broadcast final candle
+
         broadcast({
           type: 'candleComplete',
           data: currentCandle
         });
-        
-        // Start new period
-        currentPeriod++;
-        countdown = 60;
-        resultCalculated = false;
-        currentCandle = {
-          period: currentPeriod,
-          open: currentCandle.close,
-          high: currentCandle.close,
-          low: currentCandle.close,
-          close: currentCandle.close,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Broadcast new period start
-        broadcast({
-          type: 'newPeriod',
-          data: {
-            period: currentPeriod,
-            countdown: 60,
-            bettingActive: true
-          }
-        });
-        
-        return;
-      }
-      
-      // Calculate result at 19 seconds remaining
-      if (countdown === 19 && !resultCalculated) {
-        resultCalculated = true;
-        
-        // Generate result number (1-9, no 0 to avoid violet results)
+
         const resultNumber = Math.floor(Math.random() * 9) + 1;
-        const result = resultNumber % 2 === 0 ? 'red' : 'green';
-        
-        // Dramatic price movement based on result
-        const dramaticChange = (Math.random() * 100) + 50; // 50-150 price change
-        const targetPrice = result === 'green' 
-          ? currentCandle.close + dramaticChange 
-          : currentCandle.close - dramaticChange;
-        
-        currentCandle.close = targetPrice;
-        currentCandle.high = Math.max(currentCandle.high, targetPrice);
-        currentCandle.low = Math.min(currentCandle.low, targetPrice);
-        
-        // Store game result
         await storage.createGameResult({
           period: currentCandle.period,
           ans: resultNumber,
-          num: Math.round(targetPrice),
-          color: result,
+          num: Math.round(currentCandle.close),
+          color: resultColor,
           color2: null,
           gameType: 'FastParity'
         });
-        
-        // Process bets for this period
+
         const periodBets = await storage.getBetsByPeriod(currentCandle.period, 'FastParity');
         for (const bet of periodBets) {
-          const isWin =
-            (result === 'green' && (bet.ans === 'green' || bet.ans === 'up')) ||
-            (result === 'red' && (bet.ans === 'red' || bet.ans === 'down'));
-          const payout = isWin ? bet.amount * 1.98 : 0; // 98% payout
-          
-          await storage.updateBetResult(String(bet.id), isWin ? 'win' : 'loss', payout);
-          
-          if (isWin) {
+          let payout = 0;
+          const betColor = bet.ans === 'green' || bet.ans === 'up' ? 'green' : 'red';
+          if (resultColor === 'green' && betColor === 'green') payout = bet.amount * 1.92;
+          if (resultColor === 'red' && betColor === 'red') payout = bet.amount * 1.92;
+          if (resultColor === 'green_doji' && betColor === 'green') payout = bet.amount * 1.3;
+          if (resultColor === 'red_doji' && betColor === 'red') payout = bet.amount * 1.3;
+
+          await storage.updateBetResult(String(bet.id), payout > 0 ? 'win' : 'loss', payout);
+
+          if (payout > 0) {
             await storage.updateUserBalance(bet.username, payout);
             await storage.createTransaction({
               username: bet.username,
@@ -508,32 +477,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-        
-        // Broadcast result
+
         broadcast({
           type: 'gameResult',
           data: {
             period: currentCandle.period,
             ans: resultNumber,
-            num: Math.round(targetPrice),
-            color: result,
+            num: Math.round(currentCandle.close),
+            color: resultColor,
             gameType: 'FastParity'
           }
         });
-        
-        // Stop betting
+
+        currentPeriod++;
+        countdown = PERIOD_SECONDS;
+        resultCalculated = false;
+        resultColor = null;
+        currentCandle = {
+          period: currentPeriod,
+          open: currentCandle.close,
+          high: currentCandle.close,
+          low: currentCandle.close,
+          close: currentCandle.close,
+          timestamp: new Date().toISOString()
+        };
+
+        broadcast({
+          type: 'newPeriod',
+          data: {
+            period: currentPeriod,
+            countdown: PERIOD_SECONDS,
+            bettingActive: true
+          }
+        });
+
+        return;
+      }
+
+      if (countdown === BETTING_CLOSE && !resultCalculated) {
+        resultCalculated = true;
+
+        const periodBets = await storage.getBetsByPeriod(currentCandle.period, 'FastParity');
+        const buyTotal = periodBets
+          .filter(b => b.ans === 'green' || b.ans === 'up')
+          .reduce((s, b) => s + b.amount, 0);
+        const sellTotal = periodBets
+          .filter(b => b.ans === 'red' || b.ans === 'down')
+          .reduce((s, b) => s + b.amount, 0);
+
+        if (buyTotal === 0 && sellTotal === 0) {
+          resultColor = Math.random() > 0.5 ? 'green' : 'red';
+        } else if (buyTotal > sellTotal) {
+          resultColor = 'red';
+        } else if (sellTotal > buyTotal) {
+          resultColor = 'green';
+        } else {
+          resultColor = Math.random() > 0.5 ? 'green_doji' : 'red_doji';
+        }
+
         broadcast({
           type: 'bettingClosed',
           data: { period: currentCandle.period }
         });
-      } else {
-        // Normal price fluctuation
-        const volatility = countdown > 19 ? 5 : 15; // Higher volatility after result
-        const priceChange = (Math.random() - 0.5) * volatility;
-        currentCandle.close += priceChange;
-        currentCandle.high = Math.max(currentCandle.high, currentCandle.close);
-        currentCandle.low = Math.min(currentCandle.low, currentCandle.close);
       }
+
+      const volatility = resultCalculated ? 15 : 5;
+      const bias = resultColor === 'green' || resultColor === 'green_doji' ? 0.5 : resultColor === 'red' || resultColor === 'red_doji' ? -0.5 : 0;
+      const priceChange = (Math.random() - 0.5 + bias) * volatility;
+      currentCandle.close += priceChange;
+      currentCandle.high = Math.max(currentCandle.high, currentCandle.close);
+      currentCandle.low = Math.min(currentCandle.low, currentCandle.close);
       
       // Broadcast live price update
       broadcast({
@@ -541,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data: {
           ...currentCandle,
           countdown,
-          bettingActive: countdown > 10, // Stop betting 10 seconds before result
+          bettingActive: countdown > BETTING_CLOSE,
           resultCalculated
         }
       });

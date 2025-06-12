@@ -62,7 +62,7 @@ export const api = {
     return response.json();
   },
 
-  getChartData: async (gameType: string = 'FastParity', limit: number = 20) => {
+  getChartData: async (gameType: string = 'FastParity', limit: number = 720) => {
     const response = await apiRequest('GET', `/api/game/chart?gameType=${gameType}&limit=${limit}`);
     return response.json();
   },
